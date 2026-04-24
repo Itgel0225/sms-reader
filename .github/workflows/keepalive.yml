@@ -1,0 +1,12 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping SMS Reader
+        run: curl -s https://sms-reader-m9kh.onrender.com/health
