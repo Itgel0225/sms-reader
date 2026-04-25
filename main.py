@@ -7,6 +7,32 @@ from datetime import datetime
 from classifier import classifier, CATEGORY_ICONS
 from parser import parse_khan_bank_sms
 
+
+def is_meaningful_merchant(merchant) -> bool:
+    """Худалдаачин/гүйлгээний утга утга төгөлдөр эсэхийг шалгах.
+    'a', 'b', '1', '12', 'aa' гэх мэт богино, утгагүй текст байвал False."""
+    if not merchant:
+        return False
+    cleaned = merchant.strip()
+    # 3 тэмдэгтээс богино бол утгагүй
+    if len(cleaned) < 3:
+        return False
+    # Зөвхөн тоо/тэмдэгтээс бүрдсэн бол утгагүй (жишээ: "123", "***")
+    if not any(c.isalpha() for c in cleaned):
+        return False
+    return True
+
+
+def resolve_category(prediction: dict, merchant) -> dict:
+    """Хэрэв гүйлгээний утга утгагүй бол 'Бусад' гэж ангилах."""
+    if not is_meaningful_merchant(merchant):
+        return {
+            "category": "Бусад",
+            "icon": CATEGORY_ICONS.get("Бусад", "❓"),
+            "confidence": prediction.get("confidence", 0.0),
+        }
+    return prediction
+
 app = FastAPI(
     title="SMS Зарлага Ангилагч API",
     description="Хаан банкны SMS-ийг ML ашиглан ангилах API",
@@ -69,6 +95,7 @@ def classify_sms(request: SMSRequest):
     try:
         parsed = parse_khan_bank_sms(request.sms_text)
         prediction = classifier.predict(request.sms_text)
+        prediction = resolve_category(prediction, parsed.merchant)
 
         return TransactionResponse(
             sms_text=request.sms_text,
@@ -93,6 +120,7 @@ def classify_batch(request: BatchSMSRequest):
         try:
             parsed = parse_khan_bank_sms(sms_req.sms_text)
             prediction = classifier.predict(sms_req.sms_text)
+            prediction = resolve_category(prediction, parsed.merchant)
             results.append(TransactionResponse(
                 sms_text=sms_req.sms_text,
                 amount=parsed.amount,
