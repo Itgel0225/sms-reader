@@ -7,8 +7,15 @@ from sklearn.model_selection import cross_val_score
 import numpy as np
 
 from training_data import training_data
+from feedback_store import load_feedback
 
 MODEL_PATH = "model.pkl"
+
+
+def get_all_training_data():
+    """Үндсэн өгөгдөл + хэрэглэгчийн засалуудыг нэгтгэн буцаана."""
+    feedback = load_feedback()
+    return list(training_data) + feedback
 
 CATEGORY_ICONS = {
     "Хоол": "🍽️",
@@ -39,7 +46,7 @@ class SMSClassifier:
 
     def train(self, data=None):
         if data is None:
-            data = training_data
+            data = get_all_training_data()
 
         texts = [d[0] for d in data]
         labels = [d[1] for d in data]
@@ -92,9 +99,14 @@ class SMSClassifier:
             self.train()
 
     def add_training_sample(self, sms_text: str, correct_category: str):
-        """Хэрэглэгч залруулсан категорийг дахин сургах"""
-        training_data.append((sms_text, correct_category))
-        self.train(training_data)
+        """Хэрэглэгч залруулсан категорийг хадгалж дахин сургах.
+
+        feedback_store.py нь засалыг локал JSON болон GitHub-т хадгална.
+        Дараа нь бүх өгөгдлөөр (training_data + feedback) дахин сургана.
+        """
+        from feedback_store import add_feedback
+        add_feedback(sms_text, correct_category)
+        self.train()
         print(f"🔄 Model retrained with new sample: '{correct_category}'")
 
 
